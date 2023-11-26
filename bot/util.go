@@ -9,7 +9,7 @@ import (
 )
 
 func getChannel(guildId string) (*data.Channel, error) {
-	ch, ok := (*C)[guildId]
+	ch, ok := C[guildId]
 	if !ok {
 		return nil, fmt.Errorf("channel not found")
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	AocURL = "https://adventofcode.com/2022/leaderboard/private/view/"
+	AocURL = "https://adventofcode.com/2023/leaderboard/private/view/"
 )
 
 func GetData(boardId string) (*Data, error) {

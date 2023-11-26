@@ -34,7 +34,7 @@ func main() {
 		log.Fatal("Fatal:", fmt.Errorf("main: %w", err))
 	}
 	defer Session.Close()
-	log.Println("Session initialized for", len(*bot.C), "servers")
+	log.Println("Session initialized for", len(bot.C), "servers")
 
 	// Register commands
 	r, err := bot.RegisterCommands()
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// Continually fetch advent of code data every 15 minutes
-	for _, ch := range *bot.C {
+	for _, ch := range bot.C {
 		go func(channel *data.Channel) {
 			for {
 				log.Println("Attempting to fetch data for leaderboard " + channel.Leaderboard + "...")

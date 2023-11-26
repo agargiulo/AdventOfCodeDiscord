@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"dustin-ward/AdventOfCodeBot/data"
 
@@ -14,7 +15,7 @@ import (
 )
 
 var s *discordgo.Session
-var C *map[string]*data.Channel
+var C map[string]*data.Channel
 var crn *cron.Cron
 var adminPerm int64 = 0
 
@@ -107,7 +108,7 @@ func InitSession() (*discordgo.Session, error) {
 	if _, err := os.Stat("./channels.json"); errors.Is(err, os.ErrNotExist) {
 		log.Println("Info: no channel config file found")
 
-		*C = make(map[string]*data.Channel, 3)
+		C = make(map[string]*data.Channel, 3)
 	} else {
 		// Read channel configs from file (Not an ideal storage method...)
 		b, err := os.ReadFile("./channels.json")
@@ -126,6 +127,7 @@ func InitSession() (*discordgo.Session, error) {
 }
 
 func TakeDown() error {
+	log.Println("Shutting Down...")
 	crn.Stop()
 
 	// Save channel configurations
@@ -153,7 +155,7 @@ func RegisterCommands() ([]*discordgo.ApplicationCommand, error) {
 }
 
 func SetupNotifications() error {
-	crn = cron.New()
+	crn = cron.NewWithLocation(time.UTC)
 
 	// Cronjob for 4:30am UTC (11:30pm EST)
 	if err := crn.AddFunc("0 30 4 * * *", problemNotification); err != nil {
