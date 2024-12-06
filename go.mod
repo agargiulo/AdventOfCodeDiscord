@@ -3,12 +3,13 @@ module dustin-ward/AdventOfCodeBot
 go 1.19
 
 require (
-	github.com/bwmarrin/discordgo v0.26.1
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/robfig/cron v1.2.0
 )
 
 require (
-	github.com/gorilla/websocket v1.5.0 // indirect
-	golang.org/x/crypto v0.3.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
+	golang.org/x/crypto v0.30.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 )
