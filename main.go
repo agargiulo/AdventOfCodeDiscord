@@ -15,40 +15,49 @@ import (
 )
 
 const (
-	REQUEST_RATE = time.Minute * 15
+	RequestRate = time.Minute * 15
 )
 
 func main() {
 	// Setup the default values for the environment variables
 	if os.Getenv("DATA_DIR") == "" {
-		os.Setenv("DATA_DIR", "./")
+		if err := os.Setenv("DATA_DIR", "./"); err != nil {
+			panic(err)
+		}
 	}
 
 	// Avoid most user indused errors due to an incorrect path.
 	if !strings.HasSuffix(os.Getenv("DATA_DIR"), "/") {
-		os.Setenv("DATA_DIR", os.Getenv("DATA_DIR")+"/")
+		if err := os.Setenv("DATA_DIR", os.Getenv("DATA_DIR")+"/"); err != nil {
+			panic(err)
+		}
 	}
 
 	// Initialize Discord Session
-	Session, err := bot.InitSession()
+	aocBot, err := bot.InitBot()
 	if err != nil {
 		log.Fatal("Fatal:", fmt.Errorf("main: %w", err))
 	}
 
 	// Add init handler
-	Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+	aocBot.Session().AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
 
 	// Open connection
-	if err = Session.Open(); err != nil {
+	if err = aocBot.Session().Open(); err != nil {
 		log.Fatal("Fatal:", fmt.Errorf("main: %w", err))
 	}
-	defer Session.Close()
-	log.Println("Session initialized for", len(bot.C), "servers")
+	defer func(session *discordgo.Session) {
+		err := session.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(aocBot.Session())
+	log.Println("Session initialized for", len(aocBot.Chans()), "servers")
 
 	// Register commands
-	r, err := bot.RegisterCommands()
+	r, err := aocBot.RegisterCommands()
 	if err != nil {
 		log.Fatal("Fatal:", fmt.Errorf("main: %w", err))
 	}
@@ -57,12 +66,12 @@ func main() {
 	}
 
 	// Setup Cron
-	if err = bot.SetupNotifications(); err != nil {
+	if err = aocBot.SetupNotifications(); err != nil {
 		log.Println("Error: unable to send notification: %w", err)
 	}
 
 	// Continually fetch advent of code data every 15 minutes
-	for _, ch := range bot.C {
+	for _, ch := range aocBot.Chans() {
 		go func(channel *data.Channel) {
 			for {
 				log.Println("Attempting to fetch data for leaderboard " + channel.Leaderboard + "...")
@@ -72,7 +81,7 @@ func main() {
 					log.Println(channel.Leaderboard, "success!")
 				}
 
-				time.Sleep(REQUEST_RATE)
+				time.Sleep(RequestRate)
 			}
 		}(ch)
 	}
@@ -83,5 +92,7 @@ func main() {
 	log.Println("Press Ctrl+C to exit")
 	<-stop
 
-	bot.TakeDown()
+	if err := aocBot.TakeDown(); err != nil {
+		panic(err)
+	}
 }

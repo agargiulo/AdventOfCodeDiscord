@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"dustin-ward/AdventOfCodeBot/data"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,14 +8,16 @@ import (
 	"sort"
 	"time"
 
+	"dustin-ward/AdventOfCodeBot/data"
+
 	"github.com/bwmarrin/discordgo"
 )
 
-func leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (ab *AocBot) leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Info: command \"leaderboard\" executed from guildId: %s", i.GuildID)
 
 	// Get calling channel
-	channel, err := getChannel(i.GuildID)
+	channel, err := ab.getChannel(i.GuildID)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("leaderboard: %v", err))
 		respondWithError(s, i, "Your server has not been correctly configured! 🛠️ Use /configure-server")
@@ -27,11 +28,11 @@ func leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	D, err := data.GetData(channel.Leaderboard)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("leaderboard: %v", err))
-		respondWithError(s, i, "An internal error occured...")
+		respondWithError(s, i, "An internal error occurred...")
 		return
 	}
 
-	// Sort users by stars and localscore
+	// Sort users by stars and local score
 	M := make([]data.User, 0)
 	for _, m := range D.Members {
 		M = append(M, m)
@@ -47,27 +48,23 @@ func leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	fields := make([]*discordgo.MessageEmbedField, 0)
 	for _, m := range M {
 		// Calculate avg. delta time.
-		daysFullyComplete := uint32(0)
-		deltaTimeSum := uint32(0)
+		daysFullyComplete := int64(0)
+		deltaTimeSum := time.Duration(0)
 		for _, d := range m.CompletionDayLevel {
 			if d.Silver != nil && d.Gold != nil {
 				daysFullyComplete++
-				deltaTimeSum += d.Gold.Timestamp - d.Silver.Timestamp
+				deltaTimeSum += time.Unix(int64(d.Gold.Timestamp), 0).Sub(time.Unix(int64(d.Silver.Timestamp), 0))
 			}
 		}
 
-		var avgDeltaTime uint32 = 0
-		var avgDtimeS uint32 = 0
-		var avgDtimeM uint32 = 0
+		var avgDeltaTime time.Duration = 0
 		if daysFullyComplete != 0 {
-			avgDeltaTime = deltaTimeSum / daysFullyComplete
-			avgDtimeS = avgDeltaTime % 60
-			avgDtimeM = avgDeltaTime / 60
+			avgDeltaTime = time.Duration(deltaTimeSum.Nanoseconds() / daysFullyComplete).Round(time.Millisecond)
 		}
 
 		f := &discordgo.MessageEmbedField{
 			Name:  fmt.Sprintf("**%s**", m.Name),
-			Value: fmt.Sprintf("⭐ %d 🏆 %d ⏳ %d:%02d", m.Stars, m.LocalScore, avgDtimeM, avgDtimeS),
+			Value: fmt.Sprintf("⭐ %d 🏆 %d ⏳ %s", m.Stars, m.LocalScore, avgDeltaTime),
 		}
 		fields = append(fields, f)
 	}
@@ -85,14 +82,15 @@ func leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Create embed object
 	embeds := make([]*discordgo.MessageEmbed, 1)
 	embeds[0] = &discordgo.MessageEmbed{
-		URL:   "https://adventofcode.com/2023/leaderboard/private/view/" + channel.Leaderboard,
+		URL:   data.AocLeaderboardUrl(channel.Leaderboard),
 		Type:  discordgo.EmbedTypeRich,
-		Title: "🎄 2023 Leaderboard 🎄",
+		Title: data.LearderBoardTitle,
 		Color: 0x127C06,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Leaderboard as of " + time.Now().Format("2006/01/02 3:4:5pm"),
+			Text: "⏳: Average time to solve part 2",
 		},
-		Fields: fields,
+		Description: fmt.Sprintf("Leaderboard as of <t:%d:F>", time.Now().Unix()),
+		Fields:      fields,
 	}
 
 	// Send embed to channel
@@ -107,7 +105,7 @@ func leaderboard(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-func configure(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (ab *AocBot) configure(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Info: command \"configure\" executed from guildId: %s", i.GuildID)
 
 	// Grab command options from user
@@ -127,10 +125,10 @@ func configure(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// Add to local memory
-	C[i.GuildID] = &ch
+	ab.c[i.GuildID] = &ch
 
 	// Write to file
-	b, err := json.Marshal(C)
+	b, err := json.Marshal(ab.c)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("configure: %v", err))
 		respondWithError(s, i, "Error: Invalid arguments were supplied...")
@@ -153,10 +151,10 @@ func configure(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	respond(s, i, "Server successfully configured!", true)
 }
 
-func startCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (ab *AocBot) startCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Info: command \"start-notifications\" executed from guildId: %s", i.GuildID)
 
-	ch, err := getChannel(i.GuildID)
+	ch, err := ab.getChannel(i.GuildID)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("start-notifications: %v", err))
 		respondWithError(s, i, "Your server has not been correctly configured! 🛠️ Use /configure-server")
@@ -167,10 +165,10 @@ func startCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	respond(s, i, "Notification process started! ⏰", false)
 }
 
-func stopCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (ab *AocBot) stopCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Info: command \"stop-notifications\" executed from guildId: %s", i.GuildID)
 
-	ch, err := getChannel(i.GuildID)
+	ch, err := ab.getChannel(i.GuildID)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("start-notifications: %v", err))
 		respondWithError(s, i, "Your server has not been correctly configured! 🛠️ Use /configure-server")
@@ -181,22 +179,22 @@ func stopCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	respond(s, i, "Notification process stopped! ⏸", false)
 }
 
-func checkCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (ab *AocBot) checkCountdown(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Info: command \"check-notifications\" executed from guildId: %s", i.GuildID)
-	ch, err := getChannel(i.GuildID)
+	ch, err := ab.getChannel(i.GuildID)
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("check-notifications: %w", err))
 		respondWithError(s, i, "Your server has not been correctly configured! 🛠️ Use /configure-server")
 		return
 	}
 
-	next, err := NextNotification()
+	next, err := ab.nextNotification()
 	if err != nil {
 		log.Println("Error:", fmt.Errorf("check-notifications: %w", err))
-		respondWithError(s, i, "Internal Error 💀 Please contact @shrublord")
+		respondWithError(s, i, "Internal Error 💀 Did you configure the notifications correctly?")
 		return
 	}
-	day := next.AddDate(0, 0, 1).Day()
+	day := next.Day()
 
 	var message string
 	if ch.NotificationsOn {

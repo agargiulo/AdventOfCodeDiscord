@@ -1,15 +1,16 @@
 package bot
 
 import (
-	"dustin-ward/AdventOfCodeBot/data"
 	"fmt"
 	"log"
+
+	"dustin-ward/AdventOfCodeBot/data"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func getChannel(guildId string) (*data.Channel, error) {
-	ch, ok := C[guildId]
+func (ab *AocBot) getChannel(guildId string) (*data.Channel, error) {
+	ch, ok := ab.c[guildId]
 	if !ok {
 		return nil, fmt.Errorf("channel not found")
 	}

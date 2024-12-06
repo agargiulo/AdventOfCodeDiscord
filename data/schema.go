@@ -9,6 +9,8 @@ type Channel struct {
 	NotificationsOn bool   `json:"notificationsOn"`
 }
 
+type Channels map[string]*Channel
+
 type Data struct {
 	Event   string          `json:"event"`
 	OwnerID int32           `json:"owner_id"`

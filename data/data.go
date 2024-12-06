@@ -5,14 +5,25 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
+	"time"
 )
 
 const (
-	AocURL = "https://adventofcode.com/2023/leaderboard/private/view/"
+	aocURLBase = "https://adventofcode.com/%d/"
 )
 
-var dataDir string = os.Getenv("DATA_DIR")
+var (
+	dataDir    = os.Getenv("DATA_DIR")
+	curYear    = time.Now().Year()
+	aocBaseUrl = fmt.Sprintf(aocURLBase, curYear)
+)
+
+var (
+	LearderBoardTitle = fmt.Sprintf("🎄 %d Leaderboard 🎄", curYear)
+)
 
 func GetData(boardId string) (*Data, error) {
 	b, err := os.ReadFile(dataDir + boardId + ".json")
@@ -29,7 +40,7 @@ func GetData(boardId string) (*Data, error) {
 
 func FetchData(boardId, sessionToken, writePath string) error {
 	// Form request to adventofcode API
-	req, err := http.NewRequest("GET", AocURL+boardId+".json", nil)
+	req, err := http.NewRequest("GET", AocLeaderboardUrl(boardId)+".json", nil)
 	if err != nil {
 		return err
 	}
@@ -56,4 +67,20 @@ func FetchData(boardId, sessionToken, writePath string) error {
 	}
 
 	return nil
+}
+
+func AocLeaderboardUrl(boardId string) string {
+	aocLeaderboardURL, err := url.JoinPath(aocBaseUrl, "leaderboard/private/view/", boardId)
+	if err != nil {
+		panic(err)
+	}
+	return aocLeaderboardURL
+}
+
+func ProblemUrl(day int) string {
+	problemUrl, err := url.JoinPath(aocBaseUrl, "day", strconv.Itoa(day))
+	if err != nil {
+		panic(err)
+	}
+	return problemUrl
 }
